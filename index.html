@@ -1,415 +1,520 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mensa Settimanale</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <style>
-    .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
-  </style>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 font-sans pb-12">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-16">
 
   <!-- Header -->
-  <header class="bg-slate-900 text-white p-4 shadow-md sticky top-0 z-50">
-    <div class="max-w-3xl mx-auto flex justify-between items-center">
-      <div class="flex items-center space-x-2">
-        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-        <h1 class="text-xl font-bold">Mensa Settimanale</h1>
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-2xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">
+          🍴
+        </div>
+        <div>
+          <h1 class="font-bold text-slate-100 text-base leading-tight">Mensa Settimanale</h1>
+          <p class="text-xs text-slate-400">Elia • Simone • Adrian</p>
+        </div>
       </div>
-      <button onclick="toggleApiKeyModal()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300">
+      <button onclick="toggleApiKeyModal()" id="api-status-btn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
         🔑 API Key
       </button>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="max-w-3xl mx-auto p-4 space-y-6">
+  <main class="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
-    <!-- Step 1: Input Menu -->
-    <section class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <span class="bg-blue-100 text-blue-700 rounded-full w-7 h-7 flex items-center justify-center text-sm">1</span>
-          Menu dello Chef
-        </h2>
-        <button onclick="enableManualEdit()" class="text-xs text-blue-600 hover:underline">✏️ Modifica Manuale</button>
-      </div>
-
-      <!-- Tabs Input -->
-      <div class="flex border-b border-slate-200 mb-4 text-sm">
-        <button id="tab-text" onclick="switchInputTab('text')" class="flex-1 py-2 text-center tab-active">Testo Incollato</button>
-        <button id="tab-file" onclick="switchInputTab('file')" class="flex-1 py-2 text-center text-slate-500">Foto / PDF</button>
-      </div>
-
-      <!-- Input Testo -->
-      <div id="input-text-container" class="space-y-3">
-        <textarea id="menu-text-input" rows="5" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Incolla qui il testo del menu inviato dallo chef..."></textarea>
-      </div>
-
-      <!-- Input File -->
-      <div id="input-file-container" class="space-y-3 hidden">
-        <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50">
-          <input type="file" id="menu-file-input" accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)">
-          <label for="menu-file-input" class="cursor-pointer flex flex-col items-center justify-center space-y-2">
-            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span class="text-sm font-medium text-slate-600" id="file-label">Carica un'immagine o un file PDF</span>
-          </label>
+    <!-- Passaggio 1: Input Menu -->
+    <section class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center border border-blue-500/30">1</span>
+          <h2 class="font-bold text-sm text-slate-200">Carica Menu dello Chef</h2>
         </div>
+        <button onclick="enableManualEdit()" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+          ✏️ Modifica Manuale
+        </button>
       </div>
 
-      <button id="btn-parse" onclick="processMenu()" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
-        <span>Elabora Menu con AI</span>
-      </button>
-    </section>
-
-    <!-- Step 2: Selezione Piatti per Collega -->
-    <section id="colleagues-section" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hidden">
-      <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <span class="bg-blue-100 text-blue-700 rounded-full w-7 h-7 flex items-center justify-center text-sm">2</span>
-        Scelta Piatti per Collega
-      </h2>
-
-      <!-- Selettore Collega -->
-      <div class="flex bg-slate-100 p-1 rounded-xl mb-4 text-sm font-medium">
-        <button id="btn-col-elia" onclick="switchColleague('Elia')" class="flex-1 py-2 rounded-lg bg-white shadow-sm text-slate-900 text-center">Elia</button>
-        <button id="btn-col-simone" onclick="switchColleague('Simone')" class="flex-1 py-2 rounded-lg text-slate-600 text-center">Simone</button>
-        <button id="btn-col-adrian" onclick="switchColleague('Adrian')" class="flex-1 py-2 rounded-lg text-slate-600 text-center">Adrian</button>
+      <!-- Tab Selettore Input -->
+      <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <button id="tab-text" onclick="switchTab('text')" class="flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm">Testo Incollato</button>
+        <button id="tab-file" onclick="switchTab('file')" class="flex-1 py-2 rounded-lg text-slate-400">Foto / PDF</button>
       </div>
 
-      <!-- Presenza Collega -->
-      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-4 border border-slate-200">
-        <span class="text-sm font-semibold text-slate-700" id="presence-label">Presenza di Elia questa settimana:</span>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="presence-toggle" class="sr-only peer" checked onchange="togglePresence()">
-          <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+      <!-- Area Testo -->
+      <div id="container-text">
+        <textarea id="menu-text" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="Incolla il testo del menu dello chef qui..."></textarea>
+      </div>
+
+      <!-- Area File -->
+      <div id="container-file" class="hidden">
+        <label for="menu-file" class="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950 rounded-xl p-6 text-center block cursor-pointer">
+          <input type="file" id="menu-file" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
+          <span class="text-2xl block mb-1">📄</span>
+          <span id="file-label-text" class="text-xs text-slate-400 block">Tocca per selezionare una foto o un PDF</span>
         </label>
       </div>
 
-      <!-- Form Piatti Giornalieri -->
-      <div id="days-container" class="space-y-6"></div>
-    </section>
-
-    <!-- Step 3: Riepilogo e Inoltro Chef -->
-    <section id="summary-section" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hidden">
-      <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <span class="bg-blue-100 text-blue-700 rounded-full w-7 h-7 flex items-center justify-center text-sm">3</span>
-        Riepilogo Totali da Inviare allo Chef
-      </h2>
-
-      <div id="summary-content" class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm font-mono whitespace-pre-wrap mb-4 text-slate-800"></div>
-
-      <button onclick="sendToWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2">
-        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
-        <span>Invia Ordinazione su WhatsApp</span>
+      <button id="btn-process" onclick="processMenuWithGemini()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+        🪄 Analizza Menu con AI
       </button>
     </section>
+
+    <!-- Editor Manuale / Anteprima Menu -->
+    <section id="section-menu-editor" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📋 Editor Menu Settimanale</h3>
+        <span class="text-[10px] text-slate-500">2 Primi e 2 Secondi per giorno</span>
+      </div>
+
+      <div id="editor-days-container" class="space-y-4"></div>
+    </section>
+
+    <!-- Passaggio 2: Scelte Collega -->
+    <section id="section-selection" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center border border-blue-500/30">2</span>
+        <h2 class="font-bold text-sm text-slate-200">Seleziona i Piatti per i Colleghi</h2>
+      </div>
+
+      <!-- Selettore Persona -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+        <button id="btn-user-Elia" onclick="setActiveUser('Elia')" class="py-2 rounded-lg bg-blue-600 text-white">Elia</button>
+        <button id="btn-user-Simone" onclick="setActiveUser('Simone')" class="py-2 rounded-lg text-slate-400">Simone</button>
+        <button id="btn-user-Adrian" onclick="setActiveUser('Adrian')" class="py-2 rounded-lg text-slate-400">Adrian</button>
+      </div>
+
+      <!-- Toggle Presenza -->
+      <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+        <span id="presence-text" class="text-xs font-medium text-slate-300">Presenza di Elia:</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="presence-check" class="sr-only peer" checked onchange="togglePresence()">
+          <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+
+      <!-- Form Opzioni Giornaliere -->
+      <div id="selection-forms-container" class="space-y-4"></div>
+    </section>
+
+    <!-- Passaggio 3: Riepilogo e WhatsApp -->
+    <section id="section-summary" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center border border-blue-500/30">3</span>
+        <h2 class="font-bold text-sm text-slate-200">Totali da Inviare allo Chef</h2>
+      </div>
+
+      <div id="summary-text-box" class="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono whitespace-pre-wrap text-slate-300 leading-relaxed"></div>
+
+      <button onclick="shareWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2">
+        💬 Invia Ordinazione su WhatsApp
+      </button>
+    </section>
+
   </main>
 
   <!-- Modal API Key -->
-  <div id="api-key-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-      <h3 class="text-lg font-bold text-slate-900">Configura Chiave API Gemini</h3>
-      <p class="text-xs text-slate-600">Inserisci la tua API Key ottenuta gratuitamente da Google AI Studio per permettere all'app di interpretare testo, foto e PDF.</p>
-      <input type="password" id="api-key-input" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="AIzaSy...">
-      <div class="flex justify-end gap-2">
-        <button onclick="toggleApiKeyModal()" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
-        <button onclick="saveApiKey()" class="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">Salva Chiave</button>
+  <div id="modal-key" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4">
+      <h3 class="font-bold text-sm text-slate-100">Inserisci Chiave API Gemini</h3>
+      <p class="text-xs text-slate-400">Ottieni la chiave gratuita su Google AI Studio (aistudio.google.com) e incollala qui sotto.</p>
+      <input type="password" id="input-api-key" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="AIzaSy...">
+      <div class="flex justify-end gap-2 text-xs">
+        <button onclick="toggleApiKeyModal()" class="px-3 py-2 text-slate-400 hover:text-slate-200">Annulla</button>
+        <button onclick="saveApiKey()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl">Salva</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Configurazione e Stato App
     const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì'];
-    const COLLEAGUES = ['Elia', 'Simone', 'Adrian'];
-    let activeTab = 'text';
-    let currentColleague = 'Elia';
-    let fileBase64 = null;
-    let fileMimeType = null;
+    const USERS = ['Elia', 'Simone', 'Adrian'];
 
-    let menuData = {
-      Lunedì: { primi: [], secondi: [] },
-      Martedì: { primi: [], secondi: [] },
-      Mercoledì: { primi: [], secondi: [] },
-      Giovedì: { primi: [], secondi: [] },
-      Venerdì: { primi: [], secondi: [] }
+    let activeTab = 'text';
+    let activeUser = 'Elia';
+    let uploadedFileBase64 = null;
+    let uploadedFileMime = null;
+
+    let menuState = {
+      'Lunedì': { p1: '', p2: '', s1: '', s2: '' },
+      'Martedì': { p1: '', p2: '', s1: '', s2: '' },
+      'Mercoledì': { p1: '', p2: '', s1: '', s2: '' },
+      'Giovedì': { p1: '', p2: '', s1: '', s2: '' },
+      'Venerdì': { p1: '', p2: '', s1: '', s2: '' }
     };
 
-    let selections = {
+    let userSelections = {
       Elia: { active: true, choices: {} },
       Simone: { active: true, choices: {} },
       Adrian: { active: true, choices: {} }
     };
 
-    DAYS.forEach(day => {
-      COLLEAGUES.forEach(col => {
-        if (!selections[col].choices[day]) {
-          selections[col].choices[day] = { primo: '', secondo: '' };
-        }
+    DAYS.forEach(d => {
+      USERS.forEach(u => {
+        userSelections[u].choices[d] = { primo: '', secondo: '' };
       });
     });
 
     window.onload = () => {
-      const savedKey = localStorage.getItem('gemini_api_key');
-      if (!savedKey) toggleApiKeyModal();
+      checkApiKeyStatus();
+      renderEditor();
+      renderSelections();
+      updateSummary();
     };
 
+    function checkApiKeyStatus() {
+      const key = localStorage.getItem('gemini_api_key');
+      const btn = document.getElementById('api-status-btn');
+      if (key) {
+        btn.innerHTML = '🔑 API OK';
+        btn.className = 'px-3 py-1.5 bg-emerald-950/60 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-800/50 flex items-center gap-1.5';
+      } else {
+        btn.innerHTML = '🔑 Inserisci API Key';
+        btn.className = 'px-3 py-1.5 bg-amber-950/60 text-amber-400 text-xs font-semibold rounded-lg border border-amber-800/50 flex items-center gap-1.5';
+      }
+    }
+
     function toggleApiKeyModal() {
-      const modal = document.getElementById('api-key-modal');
-      const input = document.getElementById('api-key-input');
-      input.value = localStorage.getItem('gemini_api_key') || '';
+      const modal = document.getElementById('modal-key');
+      document.getElementById('input-api-key').value = localStorage.getItem('gemini_api_key') || '';
       modal.classList.toggle('hidden');
     }
 
     function saveApiKey() {
-      const key = document.getElementById('api-key-input').value.trim();
-      if (key) {
-        localStorage.setItem('gemini_api_key', key);
+      const val = document.getElementById('input-api-key').value.trim();
+      if (val) {
+        localStorage.setItem('gemini_api_key', val);
+        checkApiKeyStatus();
         toggleApiKeyModal();
       }
     }
 
-    function switchInputTab(tab) {
+    function switchTab(tab) {
       activeTab = tab;
-      document.getElementById('tab-text').className = tab === 'text' ? 'flex-1 py-2 text-center tab-active' : 'flex-1 py-2 text-center text-slate-500';
-      document.getElementById('tab-file').className = tab === 'file' ? 'flex-1 py-2 text-center tab-active' : 'flex-1 py-2 text-center text-slate-500';
-      document.getElementById('input-text-container').classList.toggle('hidden', tab !== 'text');
-      document.getElementById('input-file-container').classList.toggle('hidden', tab !== 'file');
+      document.getElementById('tab-text').className = tab === 'text' ? 'flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm' : 'flex-1 py-2 rounded-lg text-slate-400';
+      document.getElementById('tab-file').className = tab === 'file' ? 'flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm' : 'flex-1 py-2 rounded-lg text-slate-400';
+      document.getElementById('container-text').classList.toggle('hidden', tab !== 'text');
+      document.getElementById('container-file').classList.toggle('hidden', tab !== 'file');
     }
 
-    async function handleFileSelect(event) {
-      const file = event.target.files[0];
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
       if (!file) return;
-      document.getElementById('file-label').innerText = file.name;
+
+      document.getElementById('file-label-text').innerText = file.name;
 
       if (file.type === 'application/pdf') {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
+        let txt = '';
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+          const content = await page.getTextContent();
+          txt += content.items.map(item => item.str).join(' ') + '\n';
         }
-        document.getElementById('menu-text-input').value = fullText;
-        switchInputTab('text');
+        document.getElementById('menu-text').value = txt;
+        switchTab('text');
       } else {
         const reader = new FileReader();
-        reader.onload = function(e) {
-          const base64String = e.target.result.split(',')[1];
-          fileBase64 = base64String;
-          fileMimeType = file.type;
+        reader.onload = (evt) => {
+          uploadedFileBase64 = evt.target.result.split(',')[1];
+          uploadedFileMime = file.type;
         };
         reader.readAsDataURL(file);
       }
     }
 
-    async function processMenu() {
+    async function processMenuWithGemini() {
       const apiKey = localStorage.getItem('gemini_api_key');
       if (!apiKey) {
-        alert("Inserisci prima la tua API Key Gemini dal pulsante in alto.");
+        alert("Inserisci prima la tua API Key Gemini.");
         toggleApiKeyModal();
         return;
       }
 
-      const btn = document.getElementById('btn-parse');
+      const btn = document.getElementById('btn-process');
       btn.disabled = true;
-      btn.innerText = "Analisi in corso con AI...";
+      btn.innerText = "⚡ Analisi in corso...";
 
-      try {
-        let responseText = "";
-        const prompt = `Estrai il menu settimanale (da Lunedì a Venerdì) per una mensa. Per ciascun giorno individua esattamente i 2 primi e i 2 secondi disponibili. Rispondi ESCLUSIVAMENTE con un oggetto JSON valido senza formattazione markdown aggiuntiva con la seguente struttura:
+      const promptText = `Estrai il menu dal Lunedì al Venerdì. Per ogni giorno estrai 2 primi e 2 secondi.
+Restituisci SOLO un JSON valido con questa esatta struttura:
 {
-  "Lunedì": {"primi": ["Primo 1", "Primo 2"], "secondi": ["Secondo 1", "Secondo 2"]},
-  "Martedì": {"primi": ["Primo 1", "Primo 2"], "secondi": ["Secondo 1", "Secondo 2"]},
-  "Mercoledì": {"primi": ["Primo 1", "Primo 2"], "secondi": ["Secondo 1", "Secondo 2"]},
-  "Giovedì": {"primi": ["Primo 1", "Primo 2"], "secondi": ["Secondo 1", "Secondo 2"]},
-  "Venerdì": {"primi": ["Primo 1", "Primo 2"], "secondi": ["Secondo 1", "Secondo 2"]}
+  "Lunedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
+  "Martedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
+  "Mercoledì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
+  "Giovedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
+  "Venerdì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."}
 }`;
 
-        // Endpoint aggiornato per Gemini 2.5 Flash
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      let contentsArray = [];
 
-        let payload = {};
-        if (activeTab === 'text' || document.getElementById('menu-text-input').value.trim() !== '') {
-          const textContent = document.getElementById('menu-text-input').value;
-          payload = { contents: [{ parts: [{ text: prompt + "\n\nEcco il menu:\n" + textContent }] }] };
-        } else if (activeTab === 'file' && fileBase64) {
-          payload = {
-            contents: [{
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: fileMimeType, data: fileBase64 } }
-              ]
-            }]
-          };
-        } else {
-          alert("Inserisci un testo o carica un file.");
-          btn.disabled = false;
-          btn.innerText = "Elabora Menu con AI";
-          return;
-        }
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error?.message || "Errore durante la chiamata API");
-        }
-
-        const data = await res.json();
-        const rawJson = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
-        menuData = JSON.parse(rawJson);
-
-        renderSelectionForms();
-        document.getElementById('colleagues-section').classList.remove('hidden');
-        document.getElementById('summary-section').classList.remove('hidden');
-        updateSummary();
-
-      } catch (err) {
-        alert("Errore nell'elaborazione: " + err.message);
-      } finally {
+      if (activeTab === 'text' || document.getElementById('menu-text').value.trim() !== '') {
+        const textVal = document.getElementById('menu-text').value;
+        contentsArray = [{ parts: [{ text: promptText + "\n\nMENU:\n" + textVal }] }];
+      } else if (activeTab === 'file' && uploadedFileBase64) {
+        contentsArray = [{
+          parts: [
+            { text: promptText },
+            { inline_data: { mime_type: uploadedFileMime, data: uploadedFileBase64 } }
+          ]
+        }];
+      } else {
+        alert("Incolla un testo o seleziona un file.");
         btn.disabled = false;
-        btn.innerText = "Elabora Menu con AI";
+        btn.innerText = "🪄 Analizza Menu con AI";
+        return;
+      }
+
+      // Modelli provati in sequenza per massima compatibilità
+      const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
+      let success = false;
+
+      for (const model of models) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: contentsArray,
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const rawJson = data.candidates[0].content.parts[0].text;
+            const parsed = JSON.parse(rawJson);
+            
+            DAYS.forEach(d => {
+              if (parsed[d]) {
+                menuState[d] = {
+                  p1: parsed[d].p1 || '',
+                  p2: parsed[d].p2 || '',
+                  s1: parsed[d].s1 || '',
+                  s2: parsed[d].s2 || ''
+                };
+              }
+            });
+
+            renderEditor();
+            renderSelections();
+            updateSummary();
+            success = true;
+            break;
+          }
+        } catch (e) {
+          console.warn(`Fallito tentativo con ${model}`, e);
+        }
+      }
+
+      btn.disabled = false;
+      btn.innerText = "🪄 Analizza Menu con AI";
+
+      if (!success) {
+        alert("Impossibile contattare l'API con la chiave fornita. Verifica che la chiave sia corretta oppure usa la Modifica Manuale.");
       }
     }
 
     function enableManualEdit() {
-      menuData = {
-        Lunedì: { primi: ["Primo A", "Primo B"], secondi: ["Secondo A", "Secondo B"] },
-        Martedì: { primi: ["Primo A", "Primo B"], secondi: ["Secondo A", "Secondo B"] },
-        Mercoledì: { primi: ["Primo A", "Primo B"], secondi: ["Secondo A", "Secondo B"] },
-        Giovedì: { primi: ["Primo A", "Primo B"], secondi: ["Secondo A", "Secondo B"] },
-        Venerdì: { primi: ["Primo A", "Primo B"], secondi: ["Secondo A", "Secondo B"] }
-      };
-      renderSelectionForms();
-      document.getElementById('colleagues-section').classList.remove('hidden');
-      document.getElementById('summary-section').classList.remove('hidden');
+      DAYS.forEach(d => {
+        if (!menuState[d].p1) {
+          menuState[d] = { p1: 'Primo 1', p2: 'Primo 2', s1: 'Secondo 1', s2: 'Secondo 2' };
+        }
+      });
+      renderEditor();
+      renderSelections();
       updateSummary();
     }
 
-    function switchColleague(colleague) {
-      currentColleague = colleague;
-      COLLEAGUES.forEach(c => {
-        const btn = document.getElementById(`btn-col-${c.toLowerCase()}`);
-        if (c === colleague) {
-          btn.className = 'flex-1 py-2 rounded-lg bg-white shadow-sm text-slate-900 text-center font-bold';
+    function updateMenuField(day, field, val) {
+      menuState[day][field] = val;
+      renderSelections();
+      updateSummary();
+    }
+
+    function renderEditor() {
+      const container = document.getElementById('editor-days-container');
+      container.innerHTML = '';
+
+      DAYS.forEach(day => {
+        const d = menuState[day];
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2';
+        card.innerHTML = `
+          <h4 class="text-xs font-bold text-blue-400 mb-2">${day}</h4>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-0.5">1° Primo</label>
+              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-0.5">2° Primo</label>
+              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-0.5">1° Secondo</label>
+              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-500 block mb-0.5">2° Secondo</label>
+              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function setActiveUser(user) {
+      activeUser = user;
+      USERS.forEach(u => {
+        const btn = document.getElementById(`btn-user-${u}`);
+        if (u === user) {
+          btn.className = 'py-2 rounded-lg bg-blue-600 text-white shadow-sm';
         } else {
-          btn.className = 'flex-1 py-2 rounded-lg text-slate-600 text-center';
+          btn.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200';
         }
       });
-      document.getElementById('presence-label').innerText = `Presenza di ${colleague} questa settimana:`;
-      document.getElementById('presence-toggle').checked = selections[colleague].active;
-      renderSelectionForms();
+
+      document.getElementById('presence-text').innerText = `Presenza di ${user}:`;
+      document.getElementById('presence-check').checked = userSelections[user].active;
+      renderSelections();
     }
 
     function togglePresence() {
-      const isChecked = document.getElementById('presence-toggle').checked;
-      selections[currentColleague].active = isChecked;
-      renderSelectionForms();
+      const isChecked = document.getElementById('presence-check').checked;
+      userSelections[activeUser].active = isChecked;
+      renderSelections();
       updateSummary();
     }
 
-    function renderSelectionForms() {
-      const container = document.getElementById('days-container');
+    function selectUserOption(day, course, value) {
+      userSelections[activeUser].choices[day][course] = value;
+      updateSummary();
+    }
+
+    function renderSelections() {
+      const container = document.getElementById('selection-forms-container');
       container.innerHTML = '';
 
-      if (!selections[currentColleague].active) {
-        container.innerHTML = `<div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm text-center">
-          ${currentColleague} è segnato come ASSENTE questa settimana.
-        </div>`;
+      if (!userSelections[activeUser].active) {
+        container.innerHTML = `
+          <div class="p-3 bg-amber-950/40 border border-amber-800/50 text-amber-300 rounded-xl text-xs text-center">
+            ${activeUser} è segnato come ASSENTE questa settimana.
+          </div>`;
         return;
       }
 
       DAYS.forEach(day => {
-        const dayData = menuData[day] || { primi: [], secondi: [] };
-        const userChoice = selections[currentColleague].choices[day];
+        const m = menuState[day];
+        const userChoice = userSelections[activeUser].choices[day];
 
-        const dayCard = document.createElement('div');
-        dayCard.className = 'p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3';
-        dayCard.innerHTML = `
-          <h3 class="font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center justify-between">
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3';
+
+        const primiOptions = [m.p1, m.p2].filter(Boolean);
+        const secondiOptions = [m.s1, m.s2].filter(Boolean);
+
+        card.innerHTML = `
+          <div class="font-bold text-xs text-slate-200 border-b border-slate-800 pb-1.5 flex justify-between">
             <span>📅 ${day.toUpperCase()}</span>
-          </h3>
-          
+          </div>
+
+          <!-- Primi -->
           <div>
-            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Primo piatto:</span>
+            <span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Primo:</span>
             <div class="space-y-1">
-              ${dayData.primi.map(primo => `
-                <label class="flex items-center space-x-2 p-2 rounded-lg bg-white border border-slate-200 text-sm cursor-pointer">
-                  <input type="radio" name="${currentColleague}-${day}-primo" value="${primo}" ${userChoice.primo === primo ? 'checked' : ''} onchange="saveChoice('${day}', 'primo', '${primo.replace(/'/g, "\\'")}')" class="text-blue-600 focus:ring-blue-500">
-                  <span class="text-slate-700">${primo}</span>
+              ${primiOptions.length > 0 ? primiOptions.map(p => `
+                <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer hover:border-slate-700">
+                  <input type="radio" name="${activeUser}-${day}-primo" value="${p.replace(/"/g, '&quot;')}" ${userChoice.primo === p ? 'checked' : ''} onchange="selectUserOption('${day}', 'primo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
+                  <span class="text-slate-300">${p}</span>
                 </label>
-              `).join('')}
+              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun primo disponibile</span>'}
             </div>
           </div>
 
+          <!-- Secondi -->
           <div>
-            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Secondo piatto:</span>
+            <span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Secondo:</span>
             <div class="space-y-1">
-              ${dayData.secondi.map(secondo => `
-                <label class="flex items-center space-x-2 p-2 rounded-lg bg-white border border-slate-200 text-sm cursor-pointer">
-                  <input type="radio" name="${currentColleague}-${day}-secondo" value="${secondo}" ${userChoice.secondo === secondo ? 'checked' : ''} onchange="saveChoice('${day}', 'secondo', '${secondo.replace(/'/g, "\\'")}')" class="text-blue-600 focus:ring-blue-500">
-                  <span class="text-slate-700">${secondo}</span>
+              ${secondiOptions.length > 0 ? secondiOptions.map(s => `
+                <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer hover:border-slate-700">
+                  <input type="radio" name="${activeUser}-${day}-secondo" value="${s.replace(/"/g, '&quot;')}" ${userChoice.secondo === s ? 'checked' : ''} onchange="selectUserOption('${day}', 'secondo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
+                  <span class="text-slate-300">${s}</span>
                 </label>
-              `).join('')}
+              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun secondo disponibile</span>'}
             </div>
           </div>
         `;
-        container.appendChild(dayCard);
+        container.appendChild(card);
       });
     }
 
-    function saveChoice(day, course, value) {
-      selections[currentColleague].choices[day][course] = value;
-      updateSummary();
-    }
-
     function updateSummary() {
-      let text = "📋 *ORDINAZIONE MENSA SETTIMANALE*\n\n";
+      let out = "📋 *ORDINAZIONE MENSA SETTIMANALE*\n\n";
 
       DAYS.forEach(day => {
         let primiCounts = {};
         let secondiCounts = {};
 
-        COLLEAGUES.forEach(col => {
-          if (selections[col].active) {
-            const p = selections[col].choices[day].primo;
-            const s = selections[col].choices[day].secondo;
+        USERS.forEach(u => {
+          if (userSelections[u].active) {
+            const p = userSelections[u].choices[day].primo;
+            const s = userSelections[u].choices[day].secondo;
             if (p) primiCounts[p] = (primiCounts[p] || 0) + 1;
             if (s) secondiCounts[s] = (secondiCounts[s] || 0) + 1;
           }
         });
 
-        text += `*${day.toUpperCase()}*\n`;
-        text += " Primi:\n";
-        if (Object.keys(primiCounts).length === 0) text += "  - Nessuna scelta\n";
-        for (const [dish, count] of Object.entries(primiCounts)) {
-          text += `  • ${count}x ${dish}\n`;
+        out += `*${day.toUpperCase()}*\n`;
+        out += " Primi:\n";
+        const primiKeys = Object.keys(primiCounts);
+        if (primiKeys.length === 0) {
+          out += "  - Nessuna scelta\n";
+        } else {
+          primiKeys.forEach(k => out += `  • ${primiCounts[k]}x ${k}\n`);
         }
 
-        text += " Secondi:\n";
-        if (Object.keys(secondiCounts).length === 0) text += "  - Nessuna scelta\n";
-        for (const [dish, count] of Object.entries(secondiCounts)) {
-          text += `  • ${count}x ${dish}\n`;
+        out += " Secondi:\n";
+        const secondiKeys = Object.keys(secondiCounts);
+        if (secondiKeys.length === 0) {
+          out += "  - Nessuna scelta\n";
+        } else {
+          secondiKeys.forEach(k => out += `  • ${secondiCounts[k]}x ${k}\n`);
         }
-        text += "\n";
+        out += "\n";
       });
 
-      document.getElementById('summary-content').innerText = text;
+      document.getElementById('summary-text-box').innerText = out;
     }
 
-    function sendToWhatsApp() {
-      const text = document.getElementById('summary-content').innerText;
-      const encodedText = encodeURIComponent(text);
-      window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    function shareWhatsApp() {
+      const text = document.getElementById('summary-text-box').innerText;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     }
   </script>
 </body>
