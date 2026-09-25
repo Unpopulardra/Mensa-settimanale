@@ -38,9 +38,9 @@
           <p class="text-xs text-slate-400">Elia • Simone • Adrian</p>
         </div>
       </div>
-      <button onclick="toggleApiKeyModal()" id="api-status-btn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
-        🔑 API Key
-      </button>
+      <span class="px-2.5 py-1 bg-emerald-950/60 text-emerald-400 text-[11px] font-semibold rounded-lg border border-emerald-800/50">
+        ⚡ 100% Offline / Locale
+      </span>
     </div>
   </header>
 
@@ -54,7 +54,7 @@
           <h2 class="font-bold text-sm text-slate-200">Carica Menu dello Chef</h2>
         </div>
         <button onclick="enableManualEdit()" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-          ✏️ Modifica Manuale
+          ✏️ Compila Manuale
         </button>
       </div>
 
@@ -66,7 +66,7 @@
 
       <!-- Area Testo -->
       <div id="container-text">
-        <textarea id="menu-text" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="Incolla il testo del menu dello chef qui..."></textarea>
+        <textarea id="menu-text" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="Incolla qui il messaggio del menu inviato dallo chef..."></textarea>
       </div>
 
       <!-- Area File -->
@@ -74,19 +74,19 @@
         <label for="menu-file" class="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950 rounded-xl p-6 text-center block cursor-pointer">
           <input type="file" id="menu-file" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
           <span class="text-2xl block mb-1">📄</span>
-          <span id="file-label-text" class="text-xs text-slate-400 block">Tocca per selezionare una foto o un PDF</span>
+          <span id="file-label-text" class="text-xs text-slate-400 block">Tocca per selezionare un file PDF o Testo</span>
         </label>
       </div>
 
-      <button id="btn-process" onclick="processMenuWithGemini()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
-        🪄 Analizza Menu con AI
+      <button id="btn-process" onclick="parseMenuTextLocal()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+        ⚡ Estrai Piatti dal Testo
       </button>
     </section>
 
     <!-- Editor Manuale / Anteprima Menu -->
     <section id="section-menu-editor" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📋 Editor Menu Settimanale</h3>
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📋 Verifica / Modifica Menu Estratto</h3>
         <span class="text-[10px] text-slate-500">2 Primi e 2 Secondi per giorno</span>
       </div>
 
@@ -136,27 +136,12 @@
 
   </main>
 
-  <!-- Modal API Key -->
-  <div id="modal-key" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4">
-      <h3 class="font-bold text-sm text-slate-100">Inserisci Chiave API Gemini</h3>
-      <p class="text-xs text-slate-400">Ottieni la chiave gratuita su Google AI Studio (aistudio.google.com) e incollala qui sotto.</p>
-      <input type="password" id="input-api-key" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="AIzaSy...">
-      <div class="flex justify-end gap-2 text-xs">
-        <button onclick="toggleApiKeyModal()" class="px-3 py-2 text-slate-400 hover:text-slate-200">Annulla</button>
-        <button onclick="saveApiKey()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl">Salva</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì'];
     const USERS = ['Elia', 'Simone', 'Adrian'];
 
     let activeTab = 'text';
     let activeUser = 'Elia';
-    let uploadedFileBase64 = null;
-    let uploadedFileMime = null;
 
     let menuState = {
       'Lunedì': { p1: '', p2: '', s1: '', s2: '' },
@@ -179,38 +164,10 @@
     });
 
     window.onload = () => {
-      checkApiKeyStatus();
       renderEditor();
       renderSelections();
       updateSummary();
     };
-
-    function checkApiKeyStatus() {
-      const key = localStorage.getItem('gemini_api_key');
-      const btn = document.getElementById('api-status-btn');
-      if (key) {
-        btn.innerHTML = '🔑 API OK';
-        btn.className = 'px-3 py-1.5 bg-emerald-950/60 text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-800/50 flex items-center gap-1.5';
-      } else {
-        btn.innerHTML = '🔑 Inserisci API Key';
-        btn.className = 'px-3 py-1.5 bg-amber-950/60 text-amber-400 text-xs font-semibold rounded-lg border border-amber-800/50 flex items-center gap-1.5';
-      }
-    }
-
-    function toggleApiKeyModal() {
-      const modal = document.getElementById('modal-key');
-      document.getElementById('input-api-key').value = localStorage.getItem('gemini_api_key') || '';
-      modal.classList.toggle('hidden');
-    }
-
-    function saveApiKey() {
-      const val = document.getElementById('input-api-key').value.trim();
-      if (val) {
-        localStorage.setItem('gemini_api_key', val);
-        checkApiKeyStatus();
-        toggleApiKeyModal();
-      }
-    }
 
     function switchTab(tab) {
       activeTab = tab;
@@ -237,112 +194,63 @@
         }
         document.getElementById('menu-text').value = txt;
         switchTab('text');
+      } else if (file.type.startsWith('text/')) {
+        const txt = await file.text();
+        document.getElementById('menu-text').value = txt;
+        switchTab('text');
       } else {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          uploadedFileBase64 = evt.target.result.split(',')[1];
-          uploadedFileMime = file.type;
-        };
-        reader.readAsDataURL(file);
+        alert("Per le immagini usa la 'Compilazione Manuale' oppure copia/incolla il testo del menu.");
       }
     }
 
-    async function processMenuWithGemini() {
-      const apiKey = localStorage.getItem('gemini_api_key');
-      if (!apiKey) {
-        alert("Inserisci prima la tua API Key Gemini.");
-        toggleApiKeyModal();
+    function parseMenuTextLocal() {
+      const text = document.getElementById('menu-text').value.trim();
+      if (!text) {
+        alert("Incolla prima il testo del menu nel riquadro.");
         return;
       }
 
-      const btn = document.getElementById('btn-process');
-      btn.disabled = true;
-      btn.innerText = "⚡ Analisi in corso...";
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      let currentDay = null;
+      let dayLines = { 'Lunedì': [], 'Martedì': [], 'Mercoledì': [], 'Giovedì': [], 'Venerdì': [] };
 
-      const promptText = `Estrai il menu dal Lunedì al Venerdì. Per ogni giorno estrai 2 primi e 2 secondi.
-Restituisci SOLO un JSON valido con questa esatta struttura:
-{
-  "Lunedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
-  "Martedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
-  "Mercoledì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
-  "Giovedì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."},
-  "Venerdì": {"p1": "...", "p2": "...", "s1": "...", "s2": "..."}
-}`;
-
-      let contentsArray = [];
-
-      if (activeTab === 'text' || document.getElementById('menu-text').value.trim() !== '') {
-        const textVal = document.getElementById('menu-text').value;
-        contentsArray = [{ parts: [{ text: promptText + "\n\nMENU:\n" + textVal }] }];
-      } else if (activeTab === 'file' && uploadedFileBase64) {
-        contentsArray = [{
-          parts: [
-            { text: promptText },
-            { inline_data: { mime_type: uploadedFileMime, data: uploadedFileBase64 } }
-          ]
-        }];
-      } else {
-        alert("Incolla un testo o seleziona un file.");
-        btn.disabled = false;
-        btn.innerText = "🪄 Analizza Menu con AI";
-        return;
-      }
-
-      // Modelli provati in sequenza per massima compatibilità
-      const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'];
-      let success = false;
-
-      for (const model of models) {
-        try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: contentsArray,
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const rawJson = data.candidates[0].content.parts[0].text;
-            const parsed = JSON.parse(rawJson);
-            
-            DAYS.forEach(d => {
-              if (parsed[d]) {
-                menuState[d] = {
-                  p1: parsed[d].p1 || '',
-                  p2: parsed[d].p2 || '',
-                  s1: parsed[d].s1 || '',
-                  s2: parsed[d].s2 || ''
-                };
-              }
-            });
-
-            renderEditor();
-            renderSelections();
-            updateSummary();
-            success = true;
-            break;
-          }
-        } catch (e) {
-          console.warn(`Fallito tentativo con ${model}`, e);
+      lines.forEach(line => {
+        const lower = line.toLowerCase();
+        if (lower.includes('luned')) currentDay = 'Lunedì';
+        else if (lower.includes('marted')) currentDay = 'Martedì';
+        else if (lower.includes('mercoled')) currentDay = 'Mercoledì';
+        else if (lower.includes('gioved')) currentDay = 'Giovedì';
+        else if (lower.includes('venerd')) currentDay = 'Venerdì';
+        else if (currentDay) {
+          dayLines[currentDay].push(line);
         }
-      }
+      });
 
-      btn.disabled = false;
-      btn.innerText = "🪄 Analizza Menu con AI";
+      DAYS.forEach(day => {
+        const items = dayLines[day];
+        if (items.length >= 4) {
+          menuState[day] = { p1: items[0], p2: items[1], s1: items[2], s2: items[3] };
+        } else if (items.length === 2) {
+          menuState[day] = { p1: items[0], p2: '', s1: items[1], s2: '' };
+        } else if (items.length > 0) {
+          menuState[day] = {
+            p1: items[0] || '',
+            p2: items[1] || '',
+            s1: items[2] || '',
+            s2: items[3] || ''
+          };
+        }
+      });
 
-      if (!success) {
-        alert("Impossibile contattare l'API con la chiave fornita. Verifica che la chiave sia corretta oppure usa la Modifica Manuale.");
-      }
+      renderEditor();
+      renderSelections();
+      updateSummary();
     }
 
     function enableManualEdit() {
       DAYS.forEach(d => {
         if (!menuState[d].p1) {
-          menuState[d] = { p1: 'Primo 1', p2: 'Primo 2', s1: 'Secondo 1', s2: 'Secondo 2' };
+          menuState[d] = { p1: 'Primo A', p2: 'Primo B', s1: 'Secondo A', s2: 'Secondo B' };
         }
       });
       renderEditor();
@@ -369,19 +277,19 @@ Restituisci SOLO un JSON valido con questa esatta struttura:
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">1° Primo</label>
-              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Carbonara">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">2° Primo</label>
-              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Penne al pomodoro">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">1° Secondo</label>
-              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Cotoletta">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">2° Secondo</label>
-              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Tagliata">
             </div>
           </div>
         `;
@@ -453,7 +361,7 @@ Restituisci SOLO un JSON valido con questa esatta struttura:
                   <input type="radio" name="${activeUser}-${day}-primo" value="${p.replace(/"/g, '&quot;')}" ${userChoice.primo === p ? 'checked' : ''} onchange="selectUserOption('${day}', 'primo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
                   <span class="text-slate-300">${p}</span>
                 </label>
-              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun primo disponibile</span>'}
+              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun primo inserito</span>'}
             </div>
           </div>
 
@@ -466,7 +374,7 @@ Restituisci SOLO un JSON valido con questa esatta struttura:
                   <input type="radio" name="${activeUser}-${day}-secondo" value="${s.replace(/"/g, '&quot;')}" ${userChoice.secondo === s ? 'checked' : ''} onchange="selectUserOption('${day}', 'secondo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
                   <span class="text-slate-300">${s}</span>
                 </label>
-              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun secondo disponibile</span>'}
+              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun secondo inserito</span>'}
             </div>
           </div>
         `;
