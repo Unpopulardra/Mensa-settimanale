@@ -6,6 +6,11 @@
   <title>Mensa Settimanale</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -38,9 +43,9 @@
           <p class="text-xs text-slate-400">Elia • Simone • Adrian</p>
         </div>
       </div>
-      <span class="px-2.5 py-1 bg-emerald-950/60 text-emerald-400 text-[11px] font-semibold rounded-lg border border-emerald-800/50">
-        ⚡ 100% Offline / Locale
-      </span>
+      <div id="sync-status" class="px-2.5 py-1 bg-amber-950/60 text-amber-400 text-[11px] font-semibold rounded-lg border border-amber-800/50 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> Connessione...
+      </div>
     </div>
   </header>
 
@@ -61,33 +66,33 @@
       <!-- Tab Selettore Input -->
       <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
         <button id="tab-text" onclick="switchTab('text')" class="flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm">Testo Incollato</button>
-        <button id="tab-file" onclick="switchTab('file')" class="flex-1 py-2 rounded-lg text-slate-400">Foto / PDF</button>
+        <button id="tab-file" onclick="switchTab('file')" class="flex-1 py-2 rounded-lg text-slate-400">PDF / Documenti</button>
       </div>
 
       <!-- Area Testo -->
       <div id="container-text">
-        <textarea id="menu-text" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="Incolla qui il messaggio del menu inviato dallo chef..."></textarea>
+        <textarea id="menu-text" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono" placeholder="Incolla qui il messaggio del menu inviato dallo chef..."></textarea>
       </div>
 
       <!-- Area File -->
       <div id="container-file" class="hidden">
         <label for="menu-file" class="border-2 border-dashed border-slate-800 hover:border-slate-700 bg-slate-950 rounded-xl p-6 text-center block cursor-pointer">
-          <input type="file" id="menu-file" accept="image/*,.pdf" class="hidden" onchange="handleFileUpload(event)">
+          <input type="file" id="menu-file" accept=".pdf,text/*" class="hidden" onchange="handleFileUpload(event)">
           <span class="text-2xl block mb-1">📄</span>
           <span id="file-label-text" class="text-xs text-slate-400 block">Tocca per selezionare un file PDF o Testo</span>
         </label>
       </div>
 
       <button id="btn-process" onclick="parseMenuTextLocal()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
-        ⚡ Estrai Piatti dal Testo
+        ⚡ Estrai e Sincronizza Menu
       </button>
     </section>
 
     <!-- Editor Manuale / Anteprima Menu -->
     <section id="section-menu-editor" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📋 Verifica / Modifica Menu Estratto</h3>
-        <span class="text-[10px] text-slate-500">2 Primi e 2 Secondi per giorno</span>
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📋 Menu della Settimana (Condiviso)</h3>
+        <span class="text-[10px] text-slate-500">2 Primi e 2 Secondi</span>
       </div>
 
       <div id="editor-days-container" class="space-y-4"></div>
@@ -137,6 +142,19 @@
   </main>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0Tj6UNisnUnvkpkVzX2oQLue3Y9liILk",
+      authDomain: "mensa-aziendale-961a3.firebaseapp.com",
+      projectId: "mensa-aziendale-961a3",
+      storageBucket: "mensa-aziendale-961a3.firebasestorage.app",
+      messagingSenderId: "941882269951",
+      appId: "1:941882269951:web:f623f67d427da6899f6cca",
+      databaseURL: "https://mensa-aziendale-961a3-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì'];
     const USERS = ['Elia', 'Simone', 'Adrian'];
 
@@ -164,10 +182,37 @@
     });
 
     window.onload = () => {
-      renderEditor();
-      renderSelections();
-      updateSummary();
+      initFirebaseSync();
     };
+
+    function initFirebaseSync() {
+      const statusEl = document.getElementById('sync-status');
+      
+      db.ref('mensa_data').on('value', snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          if (data.menuState) menuState = data.menuState;
+          if (data.userSelections) userSelections = data.userSelections;
+          
+          renderEditor();
+          renderSelections();
+          updateSummaryUIOnly();
+        }
+
+        statusEl.className = 'px-2.5 py-1 bg-emerald-950/60 text-emerald-400 text-[11px] font-semibold rounded-lg border border-emerald-800/50 flex items-center gap-1.5';
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online / Sincronizzato';
+      }, err => {
+        statusEl.className = 'px-2.5 py-1 bg-rose-950/60 text-rose-400 text-[11px] font-semibold rounded-lg border border-rose-800/50 flex items-center gap-1.5';
+        statusEl.innerHTML = '⚠️ Errore Sincronizzazione';
+      });
+    }
+
+    function pushDataToFirebase() {
+      db.ref('mensa_data').set({
+        menuState: menuState,
+        userSelections: userSelections
+      });
+    }
 
     function switchTab(tab) {
       activeTab = tab;
@@ -198,8 +243,6 @@
         const txt = await file.text();
         document.getElementById('menu-text').value = txt;
         switchTab('text');
-      } else {
-        alert("Per le immagini usa la 'Compilazione Manuale' oppure copia/incolla il testo del menu.");
       }
     }
 
@@ -242,9 +285,7 @@
         }
       });
 
-      renderEditor();
-      renderSelections();
-      updateSummary();
+      pushDataToFirebase();
     }
 
     function enableManualEdit() {
@@ -253,15 +294,12 @@
           menuState[d] = { p1: 'Primo A', p2: 'Primo B', s1: 'Secondo A', s2: 'Secondo B' };
         }
       });
-      renderEditor();
-      renderSelections();
-      updateSummary();
+      pushDataToFirebase();
     }
 
     function updateMenuField(day, field, val) {
       menuState[day][field] = val;
-      renderSelections();
-      updateSummary();
+      pushDataToFirebase();
     }
 
     function renderEditor() {
@@ -277,19 +315,19 @@
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">1° Primo</label>
-              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Carbonara">
+              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Primo 1">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">2° Primo</label>
-              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Penne al pomodoro">
+              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Primo 2">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">1° Secondo</label>
-              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Cotoletta">
+              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Secondo 1">
             </div>
             <div>
               <label class="text-[10px] text-slate-500 block mb-0.5">2° Secondo</label>
-              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" oninput="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Es. Tagliata">
+              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Secondo 2">
             </div>
           </div>
         `;
@@ -309,27 +347,26 @@
       });
 
       document.getElementById('presence-text').innerText = `Presenza di ${user}:`;
-      document.getElementById('presence-check').checked = userSelections[user].active;
+      document.getElementById('presence-check').checked = userSelections[user] ? userSelections[user].active : true;
       renderSelections();
     }
 
     function togglePresence() {
       const isChecked = document.getElementById('presence-check').checked;
       userSelections[activeUser].active = isChecked;
-      renderSelections();
-      updateSummary();
+      pushDataToFirebase();
     }
 
     function selectUserOption(day, course, value) {
       userSelections[activeUser].choices[day][course] = value;
-      updateSummary();
+      pushDataToFirebase();
     }
 
     function renderSelections() {
       const container = document.getElementById('selection-forms-container');
       container.innerHTML = '';
 
-      if (!userSelections[activeUser].active) {
+      if (!userSelections[activeUser] || !userSelections[activeUser].active) {
         container.innerHTML = `
           <div class="p-3 bg-amber-950/40 border border-amber-800/50 text-amber-300 rounded-xl text-xs text-center">
             ${activeUser} è segnato come ASSENTE questa settimana.
@@ -338,8 +375,8 @@
       }
 
       DAYS.forEach(day => {
-        const m = menuState[day];
-        const userChoice = userSelections[activeUser].choices[day];
+        const m = menuState[day] || { p1: '', p2: '', s1: '', s2: '' };
+        const userChoice = userSelections[activeUser].choices[day] || { primo: '', secondo: '' };
 
         const card = document.createElement('div');
         card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3';
@@ -382,7 +419,7 @@
       });
     }
 
-    function updateSummary() {
+    function updateSummaryUIOnly() {
       let out = "📋 *ORDINAZIONE MENSA SETTIMANALE*\n\n";
 
       DAYS.forEach(day => {
@@ -390,7 +427,7 @@
         let secondiCounts = {};
 
         USERS.forEach(u => {
-          if (userSelections[u].active) {
+          if (userSelections[u] && userSelections[u].active) {
             const p = userSelections[u].choices[day].primo;
             const s = userSelections[u].choices[day].secondo;
             if (p) primiCounts[p] = (primiCounts[p] || 0) + 1;
