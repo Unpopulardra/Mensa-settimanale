@@ -130,22 +130,13 @@
         <button id="btn-user-Adrian" onclick="setActiveUser('Adrian')" class="py-2 rounded-lg text-slate-400">Adrian</button>
       </div>
 
-      <!-- Toggle Presenza -->
-      <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
-        <span id="presence-text" class="text-xs font-medium text-slate-300">Presenza di Elia:</span>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="presence-check" class="sr-only peer" checked onchange="togglePresence()">
-          <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-        </label>
-      </div>
-
-      <!-- Form Opzioni Giornaliere -->
+      <!-- Form Opzioni Giornaliere con Presenza Giornaliera -->
       <div id="selection-forms-container" class="space-y-4"></div>
 
-      <!-- Pulsante Invia Scheda Personale su WhatsApp -->
-      <div class="pt-2">
-        <button onclick="sharePersonalWhatsApp()" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold py-2.5 rounded-xl text-xs border border-emerald-900/50 transition flex items-center justify-center gap-2">
-          📲 Invia Scheda Personale di <span id="btn-personal-name" class="font-bold underline">Elia</span> su WhatsApp
+      <!-- Pulsanti Salva nello Storico e WhatsApp Personale -->
+      <div class="pt-2 grid grid-cols-1 gap-2">
+        <button onclick="saveUserToHistory()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+          💾 Salva la Settimana di <span id="btn-save-name" class="font-bold underline">Elia</span> nello Storico
         </button>
       </div>
     </section>
@@ -162,6 +153,21 @@
       <button onclick="shareWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2">
         💬 Invia Totali allo Chef su WhatsApp
       </button>
+    </section>
+
+    <!-- Sezione Storico Ordinazioni -->
+    <section id="section-history" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">📜</span>
+          <h2 class="font-bold text-sm text-slate-200">Storico Ordinazioni (Ultimo Mese)</h2>
+        </div>
+        <span class="text-[10px] text-slate-500">Max 4 settimane</span>
+      </div>
+
+      <div id="history-container" class="space-y-3">
+        <p class="text-xs text-slate-500 italic text-center py-2">Nessun ordine nello storico.</p>
+      </div>
     </section>
 
   </main>
@@ -195,10 +201,12 @@
     };
 
     let userSelections = {
-      Elia: { active: true, choices: {} },
-      Simone: { active: true, choices: {} },
-      Adrian: { active: true, choices: {} }
+      Elia: { presence: { Lunedì: true, Martedì: true, Mercoledì: true, Giovedì: true, Venerdì: true }, choices: {} },
+      Simone: { presence: { Lunedì: true, Martedì: true, Mercoledì: true, Giovedì: true, Venerdì: true }, choices: {} },
+      Adrian: { presence: { Lunedì: true, Martedì: true, Mercoledì: true, Giovedì: true, Venerdì: true }, choices: {} }
     };
+
+    let historyData = [];
 
     DAYS.forEach(d => {
       USERS.forEach(u => {
@@ -217,294 +225,24 @@
         const data = snapshot.val();
         if (data) {
           if (data.menuState) menuState = data.menuState;
-          if (data.userSelections) userSelections = data.userSelections;
+          if (data.userSelections) {
+            // Migrazione retrocompatibile per la presenza giornaliera
+            USERS.forEach(u => {
+              if (data.userSelections[u]) {
+                if (!data.userSelections[u].presence) {
+                  const oldActive = data.userSelections[u].active !== false;
+                  data.userSelections[u].presence = { Lunedì: oldActive, Martedì: oldActive, Mercoledì: oldActive, Giovedì: oldActive, Venerdì: oldActive };
+                }
+                userSelections[u] = data.userSelections[u];
+              }
+            });
+          }
+          if (data.historyData) historyData = data.historyData;
           
           renderEditor();
           renderSelections();
           updateSummaryUIOnly();
+          renderHistory();
         }
 
-        statusEl.className = 'px-2.5 py-1 bg-emerald-950/60 text-emerald-400 text-[11px] font-semibold rounded-lg border border-emerald-800/50 flex items-center gap-1.5';
-        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online / Sincronizzato';
-      }, err => {
-        statusEl.className = 'px-2.5 py-1 bg-rose-950/60 text-rose-400 text-[11px] font-semibold rounded-lg border border-rose-800/50 flex items-center gap-1.5';
-        statusEl.innerHTML = '⚠️ Errore Sincronizzazione';
-      });
-    }
-
-    function pushDataToFirebase() {
-      db.ref('mensa_data').set({
-        menuState: menuState,
-        userSelections: userSelections
-      });
-    }
-
-    function switchTab(tab) {
-      activeTab = tab;
-      document.getElementById('tab-text').className = tab === 'text' ? 'flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm' : 'flex-1 py-2 rounded-lg text-slate-400';
-      document.getElementById('tab-file').className = tab === 'file' ? 'flex-1 py-2 rounded-lg bg-slate-800 text-blue-400 font-bold shadow-sm' : 'flex-1 py-2 rounded-lg text-slate-400';
-      document.getElementById('container-text').classList.toggle('hidden', tab !== 'text');
-      document.getElementById('container-file').classList.toggle('hidden', tab !== 'file');
-    }
-
-    async function handleFileUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      document.getElementById('file-label-text').innerText = file.name;
-
-      if (file.type === 'application/pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let txt = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          txt += content.items.map(item => item.str).join(' ') + '\n';
-        }
-        document.getElementById('menu-text').value = txt;
-        switchTab('text');
-      } else if (file.type.startsWith('text/')) {
-        const txt = await file.text();
-        document.getElementById('menu-text').value = txt;
-        switchTab('text');
-      }
-    }
-
-    function parseMenuTextLocal() {
-      const text = document.getElementById('menu-text').value.trim();
-      if (!text) {
-        alert("Incolla prima il testo del menu nel riquadro.");
-        return;
-      }
-
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      let currentDay = null;
-      let dayLines = { 'Lunedì': [], 'Martedì': [], 'Mercoledì': [], 'Giovedì': [], 'Venerdì': [] };
-
-      lines.forEach(line => {
-        const lower = line.toLowerCase();
-        if (lower.includes('luned')) currentDay = 'Lunedì';
-        else if (lower.includes('marted')) currentDay = 'Martedì';
-        else if (lower.includes('mercoled')) currentDay = 'Mercoledì';
-        else if (lower.includes('gioved')) currentDay = 'Giovedì';
-        else if (lower.includes('venerd')) currentDay = 'Venerdì';
-        else if (currentDay) {
-          dayLines[currentDay].push(line);
-        }
-      });
-
-      DAYS.forEach(day => {
-        const items = dayLines[day];
-        if (items.length >= 4) {
-          menuState[day] = { p1: items[0], p2: items[1], s1: items[2], s2: items[3] };
-        } else if (items.length === 2) {
-          menuState[day] = { p1: items[0], p2: '', s1: items[1], s2: '' };
-        } else if (items.length > 0) {
-          menuState[day] = {
-            p1: items[0] || '',
-            p2: items[1] || '',
-            s1: items[2] || '',
-            s2: items[3] || ''
-          };
-        }
-      });
-
-      pushDataToFirebase();
-    }
-
-    function enableManualEdit() {
-      DAYS.forEach(d => {
-        if (!menuState[d].p1) {
-          menuState[d] = { p1: 'Primo A', p2: 'Primo B', s1: 'Secondo A', s2: 'Secondo B' };
-        }
-      });
-      pushDataToFirebase();
-    }
-
-    function updateMenuField(day, field, val) {
-      menuState[day][field] = val;
-      pushDataToFirebase();
-    }
-
-    function renderEditor() {
-      const container = document.getElementById('editor-days-container');
-      container.innerHTML = '';
-
-      DAYS.forEach(day => {
-        const d = menuState[day];
-        const card = document.createElement('div');
-        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2';
-        card.innerHTML = `
-          <h4 class="text-xs font-bold text-blue-400 mb-2">${day}</h4>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <label class="text-[10px] text-slate-500 block mb-0.5">1° Primo</label>
-              <input type="text" value="${d.p1.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 'p1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Primo 1">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-500 block mb-0.5">2° Primo</label>
-              <input type="text" value="${d.p2.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 'p2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Primo 2">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-500 block mb-0.5">1° Secondo</label>
-              <input type="text" value="${d.s1.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 's1', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Secondo 1">
-            </div>
-            <div>
-              <label class="text-[10px] text-slate-500 block mb-0.5">2° Secondo</label>
-              <input type="text" value="${d.s2.replace(/"/g, '&quot;')}" onchange="updateMenuField('${day}', 's2', this.value)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500" placeholder="Secondo 2">
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function setActiveUser(user) {
-      activeUser = user;
-      USERS.forEach(u => {
-        const btn = document.getElementById(`btn-user-${u}`);
-        if (u === user) {
-          btn.className = 'py-2 rounded-lg bg-blue-600 text-white shadow-sm';
-        } else {
-          btn.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200';
-        }
-      });
-
-      document.getElementById('presence-text').innerText = `Presenza di ${user}:`;
-      document.getElementById('presence-check').checked = userSelections[user] ? userSelections[user].active : true;
-      document.getElementById('btn-personal-name').innerText = user;
-      renderSelections();
-    }
-
-    function togglePresence() {
-      const isChecked = document.getElementById('presence-check').checked;
-      userSelections[activeUser].active = isChecked;
-      pushDataToFirebase();
-    }
-
-    function selectUserOption(day, course, value) {
-      userSelections[activeUser].choices[day][course] = value;
-      pushDataToFirebase();
-    }
-
-    function renderSelections() {
-      const container = document.getElementById('selection-forms-container');
-      container.innerHTML = '';
-
-      if (!userSelections[activeUser] || !userSelections[activeUser].active) {
-        container.innerHTML = `
-          <div class="p-3 bg-amber-950/40 border border-amber-800/50 text-amber-300 rounded-xl text-xs text-center">
-            ${activeUser} è segnato come ASSENTE questa settimana.
-          </div>`;
-        return;
-      }
-
-      DAYS.forEach(day => {
-        const m = menuState[day] || { p1: '', p2: '', s1: '', s2: '' };
-        const userChoice = userSelections[activeUser].choices[day] || { primo: '', secondo: '' };
-
-        const card = document.createElement('div');
-        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3';
-
-        const primiOptions = [m.p1, m.p2].filter(Boolean);
-        const secondiOptions = [m.s1, m.s2].filter(Boolean);
-
-        card.innerHTML = `
-          <div class="font-bold text-xs text-slate-200 border-b border-slate-800 pb-1.5 flex justify-between">
-            <span>📅 ${day.toUpperCase()}</span>
-          </div>
-
-          <!-- Primi -->
-          <div>
-            <span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Primo:</span>
-            <div class="space-y-1">
-              ${primiOptions.length > 0 ? primiOptions.map(p => `
-                <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer hover:border-slate-700">
-                  <input type="radio" name="${activeUser}-${day}-primo" value="${p.replace(/"/g, '&quot;')}" ${userChoice.primo === p ? 'checked' : ''} onchange="selectUserOption('${day}', 'primo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
-                  <span class="text-slate-300">${p}</span>
-                </label>
-              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun primo inserito</span>'}
-            </div>
-          </div>
-
-          <!-- Secondi -->
-          <div>
-            <span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold block mb-1">Secondo:</span>
-            <div class="space-y-1">
-              ${secondiOptions.length > 0 ? secondiOptions.map(s => `
-                <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer hover:border-slate-700">
-                  <input type="radio" name="${activeUser}-${day}-secondo" value="${s.replace(/"/g, '&quot;')}" ${userChoice.secondo === s ? 'checked' : ''} onchange="selectUserOption('${day}', 'secondo', this.value)" class="text-blue-600 focus:ring-0 bg-slate-950 border-slate-700">
-                  <span class="text-slate-300">${s}</span>
-                </label>
-              `).join('') : '<span class="text-xs text-slate-600 italic">Nessun secondo inserito</span>'}
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    }
-
-    function updateSummaryUIOnly() {
-      let out = "📋 *ORDINAZIONE MENSA SETTIMANALE*\n\n";
-
-      DAYS.forEach(day => {
-        let primiCounts = {};
-        let secondiCounts = {};
-
-        USERS.forEach(u => {
-          if (userSelections[u] && userSelections[u].active) {
-            const p = userSelections[u].choices[day].primo;
-            const s = userSelections[u].choices[day].secondo;
-            if (p) primiCounts[p] = (primiCounts[p] || 0) + 1;
-            if (s) secondiCounts[s] = (secondiCounts[s] || 0) + 1;
-          }
-        });
-
-        out += `*${day.toUpperCase()}*\n`;
-        out += " Primi:\n";
-        const primiKeys = Object.keys(primiCounts);
-        if (primiKeys.length === 0) {
-          out += "  - Nessuna scelta\n";
-        } else {
-          primiKeys.forEach(k => out += `  • ${primiCounts[k]}x ${k}\n`);
-        }
-
-        out += " Secondi:\n";
-        const secondiKeys = Object.keys(secondiCounts);
-        if (secondiKeys.length === 0) {
-          out += "  - Nessuna scelta\n";
-        } else {
-          secondiKeys.forEach(k => out += `  • ${secondiCounts[k]}x ${k}\n`);
-        }
-        out += "\n";
-      });
-
-      document.getElementById('summary-text-box').innerText = out;
-    }
-
-    function shareWhatsApp() {
-      const text = document.getElementById('summary-text-box').innerText;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
-
-    function sharePersonalWhatsApp() {
-      if (!userSelections[activeUser] || !userSelections[activeUser].active) {
-        alert(`${activeUser} risulta assente questa settimana.`);
-        return;
-      }
-
-      let text = `🍽️ *MENU SETTIMANALE DI ${activeUser.toUpperCase()}*\n\n`;
-
-      DAYS.forEach(day => {
-        const choice = userSelections[activeUser].choices[day];
-        text += `*${day.toUpperCase()}*\n`;
-        text += `• Primo: ${choice.primo || 'Non selezionato'}\n`;
-        text += `• Secondo: ${choice.secondo || 'Non selezionato'}\n\n`;
-      });
-
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
-  </script>
-</body>
-</html>
+        statusEl.className = 'px-2.5 py-1 bg-emerald-950/
