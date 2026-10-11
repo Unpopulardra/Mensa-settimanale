@@ -7,14 +7,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   
-  <!-- Configurazione PWA (App Installabile) -->
+  <!-- Configurazione PWA -->
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Mensa">
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%232563eb'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='340'>🍴</text></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%232563eb'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='340'>🍴</text></svg>">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
   <link rel="manifest" href="manifest.json">
 
   <!-- Firebase SDKs -->
@@ -23,7 +23,11 @@
 
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registrato:', reg))
+          .catch(err => console.error('Errore SW:', err));
+      });
     }
 
     tailwind.config = {
