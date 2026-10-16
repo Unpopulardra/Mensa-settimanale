@@ -7,29 +7,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   
-  <!-- Configurazione PWA -->
-  <meta name="theme-color" content="#0f172a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Mensa">
-  
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="apple-touch-icon" href="icon.png">
-  <link rel="manifest" href="manifest.json">
-
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('SW registrato:', reg))
-          .catch(err => console.error('Errore SW:', err));
-      });
-    }
-
     tailwind.config = {
       darkMode: 'class',
       theme: {
@@ -116,7 +98,7 @@
       <div id="editor-days-container" class="space-y-4"></div>
     </section>
 
-    <!-- Passaggio 2: Scelte Collega -->
+    <!-- Passaggio 2: Scelte Collega con Presenza Giornaliera -->
     <section id="section-selection" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
       <div class="flex items-center gap-2">
         <span class="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center border border-blue-500/30">2</span>
@@ -130,7 +112,7 @@
         <button id="btn-user-Adrian" onclick="setActiveUser('Adrian')" class="py-2 rounded-lg text-slate-400">Adrian</button>
       </div>
 
-      <!-- Form Opzioni Giornaliere con Presenza Giornaliera -->
+      <!-- Form Opzioni Giornaliere con Toggle Presenza -->
       <div id="selection-forms-container" class="space-y-4"></div>
 
       <!-- Pulsanti Salva nello Storico -->
@@ -153,6 +135,21 @@
       <button onclick="shareWhatsApp()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition flex items-center justify-center gap-2">
         💬 Invia Totali allo Chef su WhatsApp
       </button>
+    </section>
+
+    <!-- Nuova Sezione: Riepilogo Costi e Conteggio Mensile -->
+    <section id="section-billing" class="bg-slate-900 rounded-2xl p-4 border border-slate-800 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">💰</span>
+          <h2 class="font-bold text-sm text-slate-200">Conteggio Mensile e Costi</h2>
+        </div>
+        <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">6,50 € / pasto</span>
+      </div>
+
+      <div id="billing-container" class="grid grid-cols-1 gap-2.5">
+        <!-- Generato dinamicamente -->
+      </div>
     </section>
 
     <!-- Sezione Storico Ordinazioni -->
@@ -185,6 +182,7 @@
 
     const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì'];
     const USERS = ['Elia', 'Simone', 'Adrian'];
+    const MEAL_PRICE = 6.50;
 
     let activeTab = 'text';
     let activeUser = 'Elia';
@@ -217,6 +215,7 @@
       renderSelections();
       updateSummaryUIOnly();
       renderHistory();
+      renderBilling();
       initFirebaseSync();
     });
 
@@ -250,34 +249,28 @@
             renderSelections();
             updateSummaryUIOnly();
             renderHistory();
+            renderBilling();
           }
 
           statusEl.className = 'px-2.5 py-1 bg-emerald-950/60 text-emerald-400 text-[11px] font-semibold rounded-lg border border-emerald-800/50 flex items-center gap-1.5';
           statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online / Sincronizzato';
         }, err => {
-          console.warn("Errore Firebase:", err);
-          statusEl.className = 'px-2.5 py-1 bg-slate-800 text-slate-300 text-[11px] font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5';
-          statusEl.innerHTML = '⚡ Locale';
+          statusEl.className = 'px-2.5 py-1 bg-rose-950/60 text-rose-400 text-[11px] font-semibold rounded-lg border border-rose-800/50 flex items-center gap-1.5';
+          statusEl.innerHTML = '⚠️ Errore Sincronizzazione';
         });
       } catch (e) {
-        console.warn("Eccezione inizializzazione Firebase:", e);
-        statusEl.className = 'px-2.5 py-1 bg-slate-800 text-slate-300 text-[11px] font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5';
-        statusEl.innerHTML = '⚡ Locale';
+        statusEl.className = 'px-2.5 py-1 bg-amber-950/60 text-amber-400 text-[11px] font-semibold rounded-lg border border-amber-800/50 flex items-center gap-1.5';
+        statusEl.innerHTML = '⚠️ Offline';
       }
     }
 
     function pushDataToFirebase() {
-      renderEditor();
-      renderSelections();
-      updateSummaryUIOnly();
-      renderHistory();
-
       if (db) {
         db.ref('mensa_data').set({
           menuState: menuState,
           userSelections: userSelections,
           historyData: historyData
-        }).catch(err => console.warn("Errore scrittura DB:", err));
+        });
       }
     }
 
@@ -375,7 +368,7 @@
       container.innerHTML = '';
 
       DAYS.forEach(day => {
-        const d = menuState[day] || { p1: '', p2: '', s1: '', s2: '' };
+        const d = menuState[day];
         const card = document.createElement('div');
         card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2';
         card.innerHTML = `
@@ -416,8 +409,9 @@
         }
       });
 
-      const btnSaveName = document.getElementById('btn-save-name');
-      if (btnSaveName) btnSaveName.innerText = user;
+      const saveBtnName = document.getElementById('btn-save-name');
+      if (saveBtnName) saveBtnName.innerText = user;
+
       renderSelections();
     }
 
@@ -430,9 +424,6 @@
     }
 
     function selectUserOption(day, course, value) {
-      if (!userSelections[activeUser].choices[day]) {
-        userSelections[activeUser].choices[day] = { primo: '', secondo: '' };
-      }
       userSelections[activeUser].choices[day][course] = value;
       pushDataToFirebase();
     }
@@ -442,33 +433,25 @@
       if (!container) return;
       container.innerHTML = '';
 
-      const userP = (userSelections[activeUser] && userSelections[activeUser].presence) 
-        ? userSelections[activeUser].presence 
-        : { Lunedì: true, Martedì: true, Mercoledì: true, Giovedì: true, Venerdì: true };
-
       DAYS.forEach(day => {
         const m = menuState[day] || { p1: '', p2: '', s1: '', s2: '' };
-        const userChoice = (userSelections[activeUser] && userSelections[activeUser].choices && userSelections[activeUser].choices[day]) 
-          ? userSelections[activeUser].choices[day] 
-          : { primo: '', secondo: '' };
-        const isPresent = userP[day] !== false;
+        const userChoice = userSelections[activeUser].choices[day] || { primo: '', secondo: '' };
+        const userPresence = userSelections[activeUser].presence || {};
+        const isPresent = userPresence[day] !== false;
 
         const card = document.createElement('div');
-        card.className = `p-3 rounded-xl border transition-all ${isPresent ? 'bg-slate-950 border-slate-800 space-y-3' : 'bg-slate-950/40 border-slate-900 opacity-60 space-y-2'}`;
+        card.className = `p-3 bg-slate-950 rounded-xl border ${isPresent ? 'border-slate-800' : 'border-amber-900/40 opacity-75'} space-y-3 transition`;
 
         const primiOptions = [m.p1, m.p2].filter(Boolean);
         const secondiOptions = [m.s1, m.s2].filter(Boolean);
 
         card.innerHTML = `
-          <div class="font-bold text-xs border-b border-slate-800 pb-1.5 flex justify-between items-center">
-            <span class="${isPresent ? 'text-slate-200' : 'text-slate-500'}">📅 ${day.toUpperCase()}</span>
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] ${isPresent ? 'text-emerald-400 font-semibold' : 'text-amber-500 font-semibold'}">${isPresent ? 'Presente' : 'Assente'}</span>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" class="sr-only peer" ${isPresent ? 'checked' : ''} onchange="toggleDailyPresence('${day}')">
-                <div class="w-8 h-4 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
+          <div class="font-bold text-xs text-slate-200 border-b border-slate-800 pb-2 flex justify-between items-center">
+            <span>📅 ${day.toUpperCase()}</span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <span class="text-[10px] text-slate-400">${isPresent ? 'Presente' : 'Assente'}</span>
+              <input type="checkbox" ${isPresent ? 'checked' : ''} onchange="toggleDailyPresence('${day}')" class="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0">
+            </label>
           </div>
 
           ${isPresent ? `
@@ -549,18 +532,23 @@
       summaryBox.innerText = out;
     }
 
+    function shareWhatsApp() {
+      const summaryBox = document.getElementById('summary-text-box');
+      if (summaryBox) {
+        window.open(`https://wa.me/?text=${encodeURIComponent(summaryBox.innerText)}`, '_blank');
+      }
+    }
+
     function saveUserToHistory() {
-      const today = new Date();
-      const dateString = today.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const uData = userSelections[activeUser];
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
       let details = [];
-      const userP = (userSelections[activeUser] && userSelections[activeUser].presence) ? userSelections[activeUser].presence : {};
-
       DAYS.forEach(day => {
-        if (userP[day] !== false) {
-          const choice = (userSelections[activeUser] && userSelections[activeUser].choices && userSelections[activeUser].choices[day]) 
-            ? userSelections[activeUser].choices[day] 
-            : { primo: '', secondo: '' };
+        const isPresent = uData.presence ? uData.presence[day] !== false : true;
+        if (isPresent) {
+          const choice = uData.choices[day] || {};
           details.push({
             day: day,
             primo: choice.primo || 'Non selezionato',
@@ -575,30 +563,20 @@
         }
       });
 
-      const entry = {
+      const newEntry = {
         id: Date.now(),
         user: activeUser,
-        date: dateString,
-        timestamp: today.getTime(),
+        date: dateStr,
+        timestamp: Date.now(),
         details: details
       };
 
-      historyData = historyData.filter(h => !(h.user === activeUser && h.date === dateString));
-      historyData.unshift(entry);
-
-      if (historyData.length > 12) {
-        historyData = historyData.slice(0, 12);
-      }
+      // Mantiene solo gli elementi salvati nell'ultimo mese (max 12 elementi per 3 utenti)
+      historyData.unshift(newEntry);
+      if (historyData.length > 15) historyData = historyData.slice(0, 15);
 
       pushDataToFirebase();
       alert(`Settimana di ${activeUser} salvata nello storico con successo!`);
-    }
-
-    function deleteHistoryItem(id) {
-      if (confirm("Vuoi eliminare questa voce dallo storico?")) {
-        historyData = historyData.filter(h => h.id !== id);
-        pushDataToFirebase();
-      }
     }
 
     function renderHistory() {
@@ -606,28 +584,38 @@
       if (!container) return;
       container.innerHTML = '';
 
-      if (!historyData || historyData.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-2">Nessun ordine nello storico.</p>';
+      if (historyData.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 italic text-center py-2">Nessun ordine presente nello storico.</p>';
         return;
       }
 
       historyData.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-2';
+        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2';
 
-        let rows = item.details.map(d => `
-          <div class="flex justify-between items-start text-[11px] py-0.5 border-b border-slate-900/60 last:border-0">
-            <span class="font-semibold text-slate-400 w-16">${d.day.slice(0, 3)}:</span>
-            <span class="text-slate-300 text-right flex-1">${d.primo === 'ASSENTE' ? '<span class="text-amber-500 font-semibold">Assente</span>' : `${d.primo} +${d.secondo}`}</span>
-          </div>
-        `).join('');
+        let rows = item.details.map(d => {
+          if (d.primo === 'ASSENTE') {
+            return `
+              <div class="flex justify-between items-start text-[11px] py-0.5 border-b border-slate-900/60 last:border-0">
+                <span class="font-semibold text-slate-400 w-16">${d.day.slice(0, 3)}:</span>
+                <span class="text-amber-500 font-semibold text-right flex-1">Assente</span>
+              </div>`;
+          }
+          
+          const piatti = [d.primo, d.secondo].filter(p => p && p !== 'Non selezionato').join(' + ');
+          return `
+            <div class="flex justify-between items-start text-[11px] py-0.5 border-b border-slate-900/60 last:border-0">
+              <span class="font-semibold text-slate-400 w-16">${d.day.slice(0, 3)}:</span>
+              <span class="text-slate-300 text-right flex-1">${piatti || 'Nessuna scelta'}</span>
+            </div>`;
+        }).join('');
 
         card.innerHTML = `
-          <div class="flex justify-between items-center font-bold text-slate-200 border-b border-slate-800 pb-1.5">
-            <span class="text-blue-400">👤 ${item.user} <span class="text-[10px] text-slate-500 font-normal">(${item.date})</span></span>
-            <button onclick="deleteHistoryItem(${item.id})" class="text-[10px] text-slate-500 hover:text-rose-400 transition">🗑️ Elimina</button>
+          <div class="flex justify-between items-center border-b border-slate-800 pb-1.5 text-xs">
+            <span class="font-bold text-blue-400">${item.user}</span>
+            <span class="text-[10px] text-slate-500">${item.date}</span>
           </div>
-          <div class="space-y-0.5 pt-1">
+          <div class="space-y-0.5">
             ${rows}
           </div>
         `;
@@ -635,11 +623,57 @@
       });
     }
 
-    function shareWhatsApp() {
-      const summaryBox = document.getElementById('summary-text-box');
-      if (!summaryBox) return;
-      const text = summaryBox.innerText;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    function renderBilling() {
+      const container = document.getElementById('billing-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let userTotals = {
+        Elia: 0,
+        Simone: 0,
+        Adrian: 0
+      };
+
+      // Calcola i giorni totali di ordinazione dallo storico
+      historyData.forEach(item => {
+        if (userTotals.hasOwnProperty(item.user)) {
+          item.details.forEach(d => {
+            if (d.primo !== 'ASSENTE') {
+              userTotals[item.user] += 1;
+            }
+          });
+        }
+      });
+
+      let grandTotalCost = 0;
+
+      USERS.forEach(u => {
+        const daysCount = userTotals[u];
+        const userCost = daysCount * MEAL_PRICE;
+        grandTotalCost += userCost;
+
+        const card = document.createElement('div');
+        card.className = 'p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center';
+        card.innerHTML = `
+          <div>
+            <h4 class="font-bold text-xs text-slate-200">${u}</h4>
+            <span class="text-[10px] text-slate-400">${daysCount} pasti ordinati</span>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-bold text-emerald-400">${userCost.toFixed(2)} €</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Totale Complessivo
+      const totalCard = document.createElement('div');
+      totalCard.className = 'p-3 bg-slate-800/60 rounded-xl border border-slate-700 flex justify-between items-center mt-1';
+      totalCard.innerHTML = `
+        <span class="font-bold text-xs text-slate-300 uppercase tracking-wider">Totale Generale Mese:</span>
+        <span class="text-base font-extrabold text-emerald-400">${grandTotalCost.toFixed(2)} €</span>
+      `;
+      container.appendChild(totalCard);
     }
   </script>
 </body>
